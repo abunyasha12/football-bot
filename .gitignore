@@ -1,0 +1,4 @@
+/.env
+/logs
+/seen_vk_posts.txt
+/__pycache__
