@@ -2,3 +2,4 @@
 /logs
 /seen_vk_posts.txt
 /__pycache__
+config.json
