@@ -13,10 +13,14 @@ from starlette.datastructures import Secret
 
 from vkmodule import VK
 
-log = logging.getLogger()
 logging.getLogger("vkbottle").setLevel(logging.WARNING)
-logging.getLogger("discord").setLevel(logging.WARNING)
+logging.getLogger("discord.gateway").setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+
+log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
+log.propagate = False
+
 
 fhandler = logging.handlers.TimedRotatingFileHandler("./logs/logfile.log", "D", backupCount=30, encoding="utf-8")
 dt_fmt = "%Y-%m-%d %H:%M:%S"
@@ -27,7 +31,7 @@ fmt = logging.Formatter(
 fhandler.setFormatter(fmt)
 log.addHandler(fhandler)
 
-chandler = logging.StreamHandler()
+chandler = logging.StreamHandler(sys.stdout)
 chandler.setLevel(logging.INFO)
 chandler.setFormatter(fmt)
 log.addHandler(chandler)
@@ -54,7 +58,7 @@ tracked_publics = []
 
 async def football_poster() -> None:
     if not VK_TOKEN:
-        log.warning("No VK_TOKEN, exiting...")
+        log.critical("No VK_TOKEN, exiting...")
         sys.exit(1)
 
     vk = VK(str(VK_TOKEN))
@@ -115,7 +119,7 @@ async def on_ready() -> None:
 
 if __name__ == "__main__":
     if DISCORD_TOKEN is None:
-        log.warning("No DISCORD_TOKEN, exiting...")
+        log.critical("No DISCORD_TOKEN, exiting...")
         sys.exit(1)
 
     load_settings()

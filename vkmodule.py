@@ -1,6 +1,5 @@
 import asyncio
 import json
-import logging
 import os
 import sys
 from pathlib import Path
@@ -8,9 +7,6 @@ from typing import Self
 
 from dotenv import load_dotenv
 from vkbottle import API, BotPolling
-
-logging.getLogger("vkbottle").setLevel(logging.INFO)
-logging.getLogger("asyncio").setLevel(logging.INFO)
 
 
 class VK:
@@ -28,11 +24,13 @@ class VK:
         with self.path.open("r", encoding="utf-8") as file:
             lines = file.readlines()
         lines = [line.strip() for line in lines]
-        del lines[20:]
+        lines.sort()
+        del lines[-20::-1]
 
         return lines
 
     async def write_seen_vk_posts(self: Self, lines: list[str]) -> list[str]:
+        lines.sort()
         with self.path.open("w", encoding="utf-8") as file:
             file.writelines([line + "\n" if "\n" not in line else line for line in lines])
 
@@ -44,17 +42,14 @@ class VK:
         except Exception as e:
             raise e
 
-        # [self.seen_posts.append(f"{i['from_id']}_{i['id']}") for i in response["items"] if f"{i['from_id']}_{i['id']}" not in self.seen_posts]
-        # await self.write_seen_vk_posts(self.seen_posts)
-
         return response
 
     async def poller(self: Self, target_id: int = 199045714):
         return BotPolling(self.api, target_id, 25).listen()
 
-    async def check_for_updates(self: Self, target_id: int) -> list[dict]:
+    async def check_for_updates(self: Self, target_id: int, count: int = 4) -> list[dict]:
         try:
-            posts = (await self.get_raw_messages(target_id))["items"]
+            posts = (await self.get_raw_messages(target_id, count))["items"]
         except Exception:
             raise
 
@@ -75,8 +70,6 @@ class VK:
                         helper["photo_urls"].append(att["photo"]["sizes"][-1]["url"])
                     if att["video"]:
                         helper["photo_urls"].append(att["video"]["image"][-1]["url"])
-            # helper["photo_url"] = post["attachments"]["photo"]["sizes"][-1]["url"]
-            # if helper:
             return_list.append(helper)
 
         await self.write_seen_vk_posts(self.seen_posts)
@@ -91,8 +84,13 @@ async def le_main() -> None:
 
     vk = VK(token)
 
-    print(json.dumps(await vk.check_for_updates(-199045714), indent=4, ensure_ascii=False))
+    print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
 
 
 if __name__ == "__main__":
+    import logging
+
+    logging.getLogger("vkbottle").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+
     asyncio.run(le_main())
