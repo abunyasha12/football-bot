@@ -6,7 +6,22 @@ from pathlib import Path
 from typing import Self
 
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from vkbottle import API, BotPolling
+
+
+class wallPost(BaseModel):
+    author_id: int
+    text: str | None = None
+    photo_urls: list[str] | None = None
+    url: str
+    timestamp: int
+
+
+class groupVK(BaseModel):
+    id: int
+    name: str
+    photo_100: str
 
 
 class VK:
@@ -39,40 +54,57 @@ class VK:
     async def get_raw_messages(self: Self, target_id: int = -199045714, count: int = 4) -> dict:
         try:
             response = (await self.api.wall.get(target_id, count=count)).dict()
+            # with open("test.json", "w", encoding="utf-8") as file:
+            #     json.dump(response, file, indent=4, ensure_ascii=False, default=lambda x: x.value)
         except Exception as e:
             raise e
 
         return response
 
-    async def poller(self: Self, target_id: int = 199045714):
+    async def get_author_data(self: Self, target_id: int):
+        try:
+            return groupVK(**(await self.api.groups.get_by_id(group_id=target_id, fields=["name", "photo_100"]))[0].dict(exclude_none=True))
+        except Exception:
+            raise
+
+    async def poller(self, target_id: int = 199045714):
         return BotPolling(self.api, target_id, 25).listen()
 
-    async def check_for_updates(self: Self, target_id: int, count: int = 4) -> list[dict]:
+    async def check_for_updates(self: Self, target_id: int, count: int = 4) -> list[wallPost]:
         try:
             posts = (await self.get_raw_messages(target_id, count))["items"]
         except Exception:
             raise
 
-        return_list = []
+        return_list: list[wallPost] = []
         for post in posts:
             # helper = {}
-            helper = {"text": "", "photo_urls": []}
+            helper = wallPost(author_id=1, url="", timestamp=0)
+            # helper = {"author_id": int, "text": "", "photo_urls": [], "timestamp": int, "url": str}
             if f"{post['from_id']}_{post['id']}" in self.seen_posts:
                 continue
 
             self.seen_posts.append(f"{post['from_id']}_{post['id']}")
 
             if post["text"]:
-                helper["text"] = post["text"]
+                helper.text = post["text"]
             if post["attachments"]:
+                helper.photo_urls = []
                 for att in post["attachments"]:
                     if att["photo"]:
-                        helper["photo_urls"].append(att["photo"]["sizes"][-1]["url"])
+                        helper.photo_urls.append(att["photo"]["sizes"][-1]["url"])
+                        break  # если нужно взять только первую попавшуюся картинку
                     if att["video"]:
-                        helper["photo_urls"].append(att["video"]["image"][-1]["url"])
+                        helper.photo_urls.append(att["video"]["image"][-1]["url"])
+                        break  # если нужно взять только первую попавшуюся картинку
+            helper.author_id = abs(post["from_id"])
+            helper.timestamp = post["date"]
+            helper.url = f"https://vk.com/wall{post['from_id']}_{post['id']}"  # https://vk.com/wall-199045714_204811
+
             return_list.append(helper)
 
         await self.write_seen_vk_posts(self.seen_posts)
+
         return return_list
 
 
@@ -83,6 +115,10 @@ async def le_main() -> None:
         sys.exit(1)
 
     vk = VK(token)
+
+    # response = (await vk.api.groups.get_by_id(group_id=199045714, fields=["name", "photo_100"]))[0].dict(exclude_none=True)
+    # with open("test.json", "w", encoding="utf-8") as file:
+    #     json.dump(response, file, indent=4, ensure_ascii=False, default=lambda x: x.value)
 
     print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
 

@@ -3,15 +3,17 @@ import json
 import logging
 import logging.handlers
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Self
 
 import discord
 from discord.ext import commands
+from pydantic import BaseModel
 from starlette.config import Config
 from starlette.datastructures import Secret
 
-from vkmodule import VK
+from vkmodule import VK, groupVK, wallPost
 
 logging.getLogger("vkbottle").setLevel(logging.WARNING)
 logging.getLogger("discord.gateway").setLevel(logging.WARNING)
@@ -52,8 +54,13 @@ class Bot(commands.Bot):
 
 
 bot = Bot()
-channels_to_post = []
-tracked_publics = []
+channels_to_post: list[int] = []
+tracked_publics: list[int] = []
+
+
+class completePost(BaseModel):
+    author: groupVK
+    posts: list[wallPost]
 
 
 async def football_poster() -> None:
@@ -65,10 +72,11 @@ async def football_poster() -> None:
     channels = [bot.get_channel(i) for i in channels_to_post]
 
     while True:
-        posts = []
+        posts_list: list[completePost] = []
         try:
-            for pub in tracked_publics:
-                posts += await vk.check_for_updates(-pub)
+            for pub_id in tracked_publics:
+                posts_list.append(completePost(author=await vk.get_author_data(pub_id), posts=await vk.check_for_updates(-pub_id)))
+
         except Exception as e:
             for channel in channels:
                 if not isinstance(channel, discord.TextChannel):
@@ -81,11 +89,29 @@ async def football_poster() -> None:
             if not isinstance(channel, discord.TextChannel):
                 continue
 
-            for post in posts:
-                urls = "\n".join(post["photo_urls"])
-                await channel.send(f"{post['text']}")
-                await channel.send(urls)
-                await asyncio.sleep(2)
+            for cpost in posts_list:
+                if not cpost.posts:
+                    continue
+
+                for post in cpost.posts:
+                    embed = (
+                        discord.Embed(
+                            title=(post.text.splitlines()[0][:250] if post.text else None),
+                            url=post.url,
+                            color=discord.Color.from_str("#00a8fc"),
+                            description=("\n".join(post.text.splitlines()[1:]) if post.text else None),
+                            timestamp=datetime.fromtimestamp(post.timestamp),
+                        )
+                        .set_image(url=post.photo_urls[0] if post.photo_urls else None)
+                        .set_thumbnail(url=cpost.author.photo_100)
+                        .set_author(name=cpost.author.name, url=f"https://vk.com/public{cpost.author.id}")
+                    )
+                    await channel.send(embed=embed)
+
+                    # urls = "\n".join(post["photo_urls"])
+                    # await channel.send(f"{post['text']}")
+                    # await channel.send(urls)
+                    await asyncio.sleep(2)
 
         await asyncio.sleep(60)
 
