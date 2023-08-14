@@ -113,7 +113,7 @@ class VK:
 
     async def check_if_exists(self, public_id: int) -> bool:
         try:
-            await self.get_raw_messages(public_id, 1)
+            await self.get_raw_messages(-abs(public_id), 1)
             return True
         except Exception:
             return False
