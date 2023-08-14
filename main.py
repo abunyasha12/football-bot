@@ -81,19 +81,29 @@ async def football_poster() -> None:
         sys.exit(1)
 
     groups_datas: list[groupData] = []
+    refresh_counter = 0
+
+    async def refresh_groups() -> list[groupData]:
+        retlist = []
+        for group in le_config.tracked_publics:
+            retlist.append(
+                groupData(
+                    id=group.id,
+                    author=await vk.get_author_data(abs(group.id)),
+                    posts=await vk.check_for_updates(-group.id),
+                    post_subscribers=group.post_subscribers,
+                )
+            )
+            await asyncio.sleep(0.3)
+        return retlist
 
     while True:
         if len(groups_datas) != len(le_config.tracked_publics):
-            for group in le_config.tracked_publics:
-                groups_datas.append(
-                    groupData(
-                        id=group.id,
-                        author=await vk.get_author_data(abs(group.id)),
-                        posts=await vk.check_for_updates(-group.id),
-                        post_subscribers=group.post_subscribers,
-                    )
-                )
-                await asyncio.sleep(0.3)
+            groups_datas = await refresh_groups()
+
+        if refresh_counter > 59:
+            refresh_counter = 0
+            groups_datas = await refresh_groups()
 
         try:
             for group in groups_datas:
@@ -133,7 +143,7 @@ async def football_poster() -> None:
                     if not isinstance(channel, discord.TextChannel):
                         continue
                     await channel.send(embed=embed)
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(0.3)
 
         # for channel in channels:
         #     if not isinstance(channel, discord.TextChannel):
@@ -162,7 +172,7 @@ async def football_poster() -> None:
         #             # await channel.send(f"{post['text']}")
         #             # await channel.send(urls)
         #             await asyncio.sleep(2)
-
+        refresh_counter += 1
         await asyncio.sleep(60)
 
 
@@ -217,11 +227,18 @@ async def add_to_track(ctx: discord.Interaction, public_id: int):
                 await ctx.followup.send(f"[ {public_id} ] is already tracking")
                 return
             group.post_subscribers.append(ctx.channel.id)
+
             await ctx.followup.send(f"Added [ {public_id} ] to tracking")
+
+            if ctx.channel.id not in le_config.error_announcement_channels:
+                le_config.error_announcement_channels.append(ctx.channel.id)
+
             save_settings()
             return
 
     le_config.tracked_publics.append(groupVKBase(id=(-abs(public_id)), post_subscribers=[ctx.channel.id]))
+    if ctx.channel.id not in le_config.error_announcement_channels:
+        le_config.error_announcement_channels.append(ctx.channel.id)
 
     save_settings()
     log.info(f"Added [ {public_id} ] to tracking")
