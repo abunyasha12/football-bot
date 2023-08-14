@@ -18,8 +18,12 @@ class wallPost(BaseModel):
     timestamp: int
 
 
-class groupVK(BaseModel):
+class groupVKBase(BaseModel):
     id: int
+    post_subscribers: list[int]
+
+
+class groupVK(groupVKBase):
     name: str
     photo_100: str
 
@@ -28,15 +32,15 @@ class VK:
     def __init__(self: Self, token: str):
         self.token = token
         self.api = API(self.token)
-        self.path = Path(".") / "seen_vk_posts.txt"
+        self.seen_path = Path(".") / "seen_vk_posts.txt"
         self.seen_posts = self.load_seen_vk_posts()
 
     def load_seen_vk_posts(self: Self) -> list[str]:
-        if not self.path.is_file():
-            with self.path.open("w") as file:
+        if not self.seen_path.is_file():
+            with self.seen_path.open("w") as file:
                 return []
 
-        with self.path.open("r", encoding="utf-8") as file:
+        with self.seen_path.open("r", encoding="utf-8") as file:
             lines = file.readlines()
         lines = [line.strip() for line in lines]
         lines.sort()
@@ -46,7 +50,7 @@ class VK:
 
     async def write_seen_vk_posts(self: Self, lines: list[str]) -> list[str]:
         lines.sort()
-        with self.path.open("w", encoding="utf-8") as file:
+        with self.seen_path.open("w", encoding="utf-8") as file:
             file.writelines([line + "\n" if "\n" not in line else line for line in lines])
 
         return lines
@@ -107,6 +111,13 @@ class VK:
 
         return return_list
 
+    async def check_if_exists(self, public_id: int) -> bool:
+        try:
+            await self.get_raw_messages(public_id, 1)
+            return True
+        except Exception as e:
+            return False
+
 
 async def le_main() -> None:
     load_dotenv()
@@ -120,7 +131,8 @@ async def le_main() -> None:
     # with open("test.json", "w", encoding="utf-8") as file:
     #     json.dump(response, file, indent=4, ensure_ascii=False, default=lambda x: x.value)
 
-    print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
+    # print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
+    print(await vk.check_if_exists(-555773757))
 
 
 if __name__ == "__main__":
