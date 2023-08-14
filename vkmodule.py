@@ -1,5 +1,4 @@
 import asyncio
-import json
 import os
 import sys
 from pathlib import Path
@@ -24,6 +23,7 @@ class groupVKBase(BaseModel):
 
 
 class groupVK(groupVKBase):
+    post_subscribers: list[int] | None = None
     name: str
     photo_100: str
 
@@ -44,7 +44,7 @@ class VK:
             lines = file.readlines()
         lines = [line.strip() for line in lines]
         lines.sort()
-        del lines[-20::-1]
+        del lines[-100::-1]
 
         return lines
 
@@ -65,7 +65,7 @@ class VK:
 
         return response
 
-    async def get_author_data(self: Self, target_id: int):
+    async def get_author_data(self: Self, target_id: int) -> groupVK:
         try:
             return groupVK(**(await self.api.groups.get_by_id(group_id=target_id, fields=["name", "photo_100"]))[0].dict(exclude_none=True))
         except Exception:
@@ -115,7 +115,7 @@ class VK:
         try:
             await self.get_raw_messages(public_id, 1)
             return True
-        except Exception as e:
+        except Exception:
             return False
 
 
