@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sys
 from pathlib import Path
@@ -32,28 +33,28 @@ class VK:
     def __init__(self: Self, token: str):
         self.token = token
         self.api = API(self.token)
-        self.seen_path = Path(".") / "seen_vk_posts.txt"
-        self.seen_posts = self.load_seen_vk_posts()
+        self.seen_path = Path(".") / "seen_vk_posts.json"
+        self.seen_posts: dict[str, list[int]] = self.load_seen_vk_posts()
 
-    def load_seen_vk_posts(self: Self) -> list[str]:
+    def load_seen_vk_posts(self: Self) -> dict[str, list[int]]:
         if not self.seen_path.is_file():
             with self.seen_path.open("w") as file:
-                return []
+                return {}
 
         with self.seen_path.open("r", encoding="utf-8") as file:
-            lines = file.readlines()
-        lines = [line.strip() for line in lines]
-        lines.sort()
-        del lines[-100::-1]
+            return json.load(file)
 
-        return lines
+        # with self.seen_path.open("r", encoding="utf-8") as file:
+        #     lines = file.readlines()
+        # lines = [line.strip() for line in lines]
+        # lines.sort()
+        # del lines[-100::-1]
 
-    async def write_seen_vk_posts(self: Self, lines: list[str]) -> list[str]:
-        lines.sort()
+        # return lines
+
+    async def write_seen_vk_posts(self: Self) -> None:
         with self.seen_path.open("w", encoding="utf-8") as file:
-            file.writelines([line + "\n" if "\n" not in line else line for line in lines])
-
-        return lines
+            json.dump(self.seen_posts, file, ensure_ascii=False, indent=4)
 
     async def get_raw_messages(self: Self, target_id: int = -199045714, count: int = 4) -> dict:
         try:
@@ -75,6 +76,10 @@ class VK:
         return BotPolling(self.api, target_id, 25).listen()
 
     async def check_for_updates(self: Self, target_id: int, count: int = 4) -> list[wallPost]:
+        # print("str(target_id) not in self.seen_posts", str(target_id) not in self.seen_posts)
+        if str(target_id) not in self.seen_posts:
+            self.seen_posts[str(target_id)] = []
+
         try:
             posts = (await self.get_raw_messages(target_id, count))["items"]
         except Exception:
@@ -85,10 +90,11 @@ class VK:
             # helper = {}
             helper = wallPost(author_id=1, url="", timestamp=0)
             # helper = {"author_id": int, "text": "", "photo_urls": [], "timestamp": int, "url": str}
-            if f"{post['from_id']}_{post['id']}" in self.seen_posts:
+            # print("post['id'] in self.seen_posts[str(target_id)]", post["id"] in self.seen_posts[str(target_id)])
+            if post["id"] in self.seen_posts[str(target_id)]:
                 continue
 
-            self.seen_posts.append(f"{post['from_id']}_{post['id']}")
+            self.seen_posts[str(target_id)].append(post["id"])
 
             if post["text"]:
                 helper.text = post["text"]
@@ -107,7 +113,9 @@ class VK:
 
             return_list.append(helper)
 
-        await self.write_seen_vk_posts(self.seen_posts)
+        # print(repr(return_list))
+
+        await self.write_seen_vk_posts()
 
         return return_list
 
@@ -131,8 +139,8 @@ async def le_main() -> None:
     # with open("test.json", "w", encoding="utf-8") as file:
     #     json.dump(response, file, indent=4, ensure_ascii=False, default=lambda x: x.value)
 
-    # print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
-    print(await vk.check_if_exists(-555773757))
+    # # print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
+    # print(await vk.check_if_exists(-555773757))
 
 
 if __name__ == "__main__":
