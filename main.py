@@ -90,7 +90,7 @@ async def football_poster() -> None:
                 groupData(
                     id=group.id,
                     author=await vk.get_author_data(abs(group.id)),
-                    posts=await vk.check_for_updates(-group.id),
+                    posts=await vk.check_for_updates(group.id),
                     post_subscribers=group.post_subscribers,
                 )
             )
