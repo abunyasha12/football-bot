@@ -2,4 +2,6 @@
 /logs
 /seen_vk_posts.txt
 /__pycache__
-config.json
+/config.json
+/venv
+/seen_vk_posts.json

@@ -127,23 +127,30 @@ async def football_poster() -> None:
             channels = [await bot.fetch_channel(i) for i in group.post_subscribers]
 
             for post in group.posts:
-                embed = (
-                    discord.Embed(
+                embeds = []
+                embeds.append(discord.Embed(
                         title=(post.text.splitlines()[0][:250] if post.text else None),
                         url=post.url,
                         color=discord.Color.from_str("#00a8fc"),
                         description=("\n".join(post.text.splitlines()[1:]) if post.text else None),
                         timestamp=datetime.fromtimestamp(post.timestamp),
-                    )
-                    .set_image(url=post.photo_urls[0] if post.photo_urls else None)
+                    ).set_image(url=post.photo_urls[0] if post.photo_urls else None)
                     .set_thumbnail(url=group.author.photo_100)
-                    .set_author(name=group.author.name, url=f"https://vk.com/public{group.author.id}")
-                )
+                    .set_author(name=group.author.name, url=f"https://vk.com/public{group.author.id}"))
+
+                if post.photo_urls and len(post.photo_urls) > 1: # прикреплят еще 8 картинок к эмбеду если они есть
+                    for img in post.photo_urls[1:8]:
+                        embeds.append(
+                            discord.Embed(
+                                url=post.url
+                            ).set_image(url=img)
+                        )
+
 
                 for channel in channels:
                     if not isinstance(channel, discord.TextChannel):
                         continue
-                    await channel.send(embed=embed)
+                    await channel.send(embeds=embeds)
                     await asyncio.sleep(0.3)
 
         # for channel in channels:
@@ -207,7 +214,7 @@ async def on_ready() -> None:
 
 
 @bot.tree.command()
-# @app_commands.describe(image="Image", factor="Upscale factor 1x-4x", upscaler="Upscaler")
+# @app_commands.describe()
 # @app_commands.guilds(*guilds_ids)
 # @app_commands.checks.cooldown(1, 60, key=lambda i: (i.guild_id, i.user.id))
 async def add_to_track(ctx: discord.Interaction, public_id: int):

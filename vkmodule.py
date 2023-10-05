@@ -103,10 +103,10 @@ class VK:
                 for att in post["attachments"]:
                     if att["photo"]:
                         helper.photo_urls.append(att["photo"]["sizes"][-1]["url"])
-                        break  # если нужно взять только первую попавшуюся картинку
+                        # break  # если нужно взять только первую попавшуюся картинку
                     if att["video"]:
                         helper.photo_urls.append(att["video"]["image"][-1]["url"])
-                        break  # если нужно взять только первую попавшуюся картинку
+                        # break  # если нужно взять только первую попавшуюся картинку
             helper.author_id = abs(post["from_id"])
             helper.timestamp = post["date"]
             helper.url = f"https://vk.com/wall{post['from_id']}_{post['id']}"  # https://vk.com/wall-199045714_204811
@@ -133,12 +133,13 @@ async def le_main() -> None:
     if not token:
         sys.exit(1)
 
-    vk = VK(token)
+    # vk = VK(token)
 
     # response = (await vk.api.groups.get_by_id(group_id=199045714, fields=["name", "photo_100"]))[0].dict(exclude_none=True)
     # with open("test.json", "w", encoding="utf-8") as file:
     #     json.dump(response, file, indent=4, ensure_ascii=False, default=lambda x: x.value)
 
+    # await vk.get_raw_messages(target_id=-202125781)
     # # print(json.dumps(await vk.check_for_updates(-199045714, 4), indent=4, ensure_ascii=False))
     # print(await vk.check_if_exists(-555773757))
 
