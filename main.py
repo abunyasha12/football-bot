@@ -132,7 +132,7 @@ async def football_poster() -> None:
                         title=(post.text.splitlines()[0][:250] if post.text else None),
                         url=post.url,
                         color=discord.Color.from_str("#00a8fc"),
-                        description=("\n".join(post.text.splitlines()[1:]) if post.text else None),
+                        description=("\n".join(post.text.splitlines()[1:])[:4000] if post.text else None),
                         timestamp=datetime.fromtimestamp(post.timestamp),
                     ).set_image(url=post.photo_urls[0] if post.photo_urls else None)
                     .set_thumbnail(url=group.author.photo_100)
